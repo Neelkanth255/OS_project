@@ -1,0 +1,193 @@
+#include<stdio.h>
+#include<sys/types.h>
+#include<unistd.h>
+#include <semaphore.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+#define MIN_PID 100
+#define MAX_PID 1000
+
+sem_t mutex;
+int pid_manager[900]; // to manage process
+int opt = 0, n = 0, topt=0,pre=0;
+pthread_t threads[1000];
+
+int reset_manager()
+{
+	int j=0;
+	for(j=0;j<=900;j++)
+	{
+		pid_manager[j] = -1;
+	}
+}
+
+void *fun(void *t)
+ {
+   	int i;
+   	long tid;
+   	tid = (long)t;
+   	if(tid>=MIN_PID && tid<=MAX_PID)
+	{
+      	allocate_pid((int)tid);
+	   	printf("%ld thread in working\n",tid);
+	}
+}
+
+void terminate(int tid)
+{
+	if(tid == 1)
+	{
+		tid = 0;
+		while(tid <= 100)
+		{
+			if( pid_manager[tid] != -1 )
+			{
+				printf("%ld thread  finished  work\n",pid_manager[tid]);
+				printf("Thread with id : %ld  ...exiting \n",pid_manager[tid]);
+				deallocate_pid((int)pid_manager[tid]);
+			}
+			tid++;
+		}
+		pre=0;
+	}
+	else
+	{
+		printf("%ld thread  finished  work\n",tid);
+		printf("Thread with id : %ld  ...exiting \n",tid);
+		deallocate_pid((int)tid);
+	}
+}
+
+void allocate_pid(int tid)
+{
+	int i=0;
+	sem_wait(&mutex);
+	for(i=0;i<100; i++)
+	{
+		if(pid_manager[i] == -1)
+		{
+			pid_manager[i] = tid;
+			printf("\n\n*********** pid_manager allocate position %d of array (pid_manager[%d])  --> Thread having ID %d ***********\n", i, i, tid);
+			break;
+		}
+	}
+	sem_post(&mutex);
+}
+void deallocate_pid(int tid)
+{
+	int i=0;
+	sem_wait(&mutex);
+	for(i=0;i<100; i++)
+	{
+		if(pid_manager[i] == tid)
+		{
+			pid_manager[i] = -1;
+			printf("\n\n############# pid_manager de-allocate position %d of array (pid_manager[%d])  --> Thred having ID %d #############\n", i , i, tid);
+			break;
+		}
+	}
+	sem_post(&mutex);
+}
+
+void creatingThread(int n)
+{
+	int rc, i;
+	sem_init(&mutex, 0, 1);
+	
+	for( i = MIN_PID+pre; i < pre+n+MIN_PID; i++ ) {
+	  printf("\n\n$$$$$$$$$$$$$$ Creating thread --> %d $$$$$$$$$$$$$$\n",i);
+      rc = pthread_create(&threads[i], NULL, fun, (void *)i );
+      if (rc) 
+	  {
+         printf("Error: unable to create thread --> %d \n",rc);
+         exit(-1);
+      }
+   }
+   //                                                 PRE
+   for( i = MIN_PID+pre; i < pre+n+MIN_PID; i++ ) 
+   {
+      rc = pthread_join(threads[i], NULL);
+      if (rc)
+	   {
+         printf("Error:unable to join --> %d \n",rc);
+         exit(-1);
+       }
+   }
+}
+
+void showThread()
+{	
+	int i=0,c=0;
+	for(i=0;i<900; i++)
+	{
+		if(pid_manager[i] != -1)
+		{
+			c++;
+			printf("Thread having ID %d is working and managed by -- > pid_manager[%d] \n", pid_manager[i], i);
+		}
+	}
+	
+	if(c ==0 )
+	{
+		printf("^^^^^^^^^^^^^^ No Thread is working ^^^^^^^^^^^^^^\n", pid_manager[i], i);
+	}
+}
+
+int main()
+{
+	reset_manager();
+		
+	while(opt != 4)
+	{
+		printf("Choose Option Below\n");
+		printf("1. Create Thread.\n");
+		printf("2. Terminate Thread.\n");
+		printf("3. Show Working Thread.\n");
+		printf("4. Quit\n");
+		printf("Enter your choice : ");
+		scanf("%d",&opt);
+
+		switch(opt)
+		{
+			case 1:
+				printf("Enter No of Threads : ");
+				scanf("%d",&n);
+				creatingThread(n);
+				pre = pre+n;
+				printf("\n\n\n");
+				printf("************************************************************");
+				break;
+			case 2:
+				printf("Choose Option Below\n");
+				printf("1. Terminate All Thread.\n");
+				printf("2. Terminate Thread with ID.\n");
+				printf("3. Quit\n");
+				printf("Enter your choice : ");
+				scanf("%d",&topt);
+				switch(topt)
+				{
+					case 1:
+						terminate(topt);
+						break;
+					case 2:
+						printf("Enter PID TO TERMINATE : ");
+						scanf("%d",&topt);
+						terminate(topt);
+					case 3:
+						break;
+				}
+				printf("\n\n\n");
+				printf("************************************************************");
+				break;
+			case 3:
+				showThread();
+				printf("\n\n\n");
+				printf("************************************************************");
+				break;
+			case 4:
+				exit(0);
+				break;
+		}
+	}
+}
